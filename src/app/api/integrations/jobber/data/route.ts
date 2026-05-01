@@ -12,9 +12,8 @@ interface GQLAmounts {
 }
 
 interface GQLInvoice {
-  id:            string;
+  id:             string;
   invoiceNumber?: string;
-  status?:        string;
   dueDate?:       string;
   amounts?:       GQLAmounts;
   client?:        { name: string };
@@ -43,7 +42,7 @@ interface GQLQueryResponse {
   errors?: Array<{ message: string; locations?: unknown; path?: unknown }>;
 }
 
-// ── GraphQL query — uses confirmed Jobber public API field names ───────────────
+// ── GraphQL query — no enum filters (schema unknown; filter client-side) ──────
 
 const QUERY = /* graphql */ `
   query LifeOSWeedGuys {
@@ -58,7 +57,7 @@ const QUERY = /* graphql */ `
         client { name }
       }
     }
-    jobs(filter: { status: [SCHEDULED, IN_PROGRESS] }, first: 10) {
+    jobs(first: 20) {
       nodes {
         id
         title
@@ -66,7 +65,7 @@ const QUERY = /* graphql */ `
         client { name }
       }
     }
-    requests(filter: { status: PENDING }, first: 5) {
+    requests(first: 10) {
       nodes {
         id
         title
@@ -100,8 +99,8 @@ export async function GET(request: Request): Promise<Response> {
     const res = await fetch(GRAPHQL_URL, {
       method: "POST",
       headers: {
-        "Content-Type":            "application/json",
-        "Authorization":           `Bearer ${validToken}`,
+        "Content-Type":             "application/json",
+        "Authorization":            `Bearer ${validToken}`,
         "X-JOBBER-GRAPHQL-VERSION": "2025-04-16",
       },
       body: JSON.stringify({ query: QUERY }),
@@ -127,22 +126,20 @@ export async function GET(request: Request): Promise<Response> {
 
     if (gql.errors?.length) {
       console.error("[jobber/data] GraphQL errors:", JSON.stringify(gql.errors));
-      // Return errors to client so we can debug without server logs
       return Response.json(
-        { error: "GraphQL errors", detail: gql.errors, raw: gql },
+        { error: "GraphQL errors", detail: gql.errors },
         { status: 422 },
       );
     }
 
-    // ── Parse invoices (filter past-due client-side from AWAITING_PAYMENT) ────
+    // ── Invoices: filter client-side for past-due with a balance ─────────────
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const invoiceNodes = gql.data?.invoices?.nodes ?? [];
 
     const overdueInvoices = invoiceNodes
       .filter((inv) => {
         if (!inv.dueDate) return false;
-        const outstanding = inv.amounts?.invoiceBalance ?? 0;
-        if (outstanding <= 0) return false;           // fully paid — skip
+        if ((inv.amounts?.invoiceBalance ?? 0) <= 0) return false;
         return new Date(inv.dueDate + "T00:00:00").getTime() < today.getTime();
       })
       .map((inv) => {
@@ -150,32 +147,39 @@ export async function GET(request: Request): Promise<Response> {
         const daysOverdue = Math.max(0, Math.floor(
           (today.getTime() - new Date(dueDate + "T00:00:00").getTime()) / 86_400_000,
         ));
-        const total = inv.amounts?.invoiceBalance ?? 0;
         return {
           id:            inv.id,
           invoiceNumber: inv.invoiceNumber ?? `#${inv.id.slice(-4)}`,
           clientName:    inv.client?.name ?? "Unknown",
-          total,
+          total:         inv.amounts?.invoiceBalance ?? 0,
           dueDate,
           daysOverdue,
         };
       });
 
-    // ── Parse upcoming jobs ───────────────────────────────────────────────────
-    const upcomingJobs = (gql.data?.jobs?.nodes ?? []).map((job) => ({
-      id:             job.id,
-      title:          job.title,
-      clientName:     job.client?.name ?? "Unknown",
-      scheduledStart: job.startAt ?? "",
-    }));
+    // ── Jobs: filter client-side for upcoming (startAt in the future) ─────────
+    const upcomingJobs = (gql.data?.jobs?.nodes ?? [])
+      .filter((job) => {
+        if (!job.startAt) return false;
+        return new Date(job.startAt).getTime() >= Date.now();
+      })
+      .slice(0, 10)
+      .map((job) => ({
+        id:             job.id,
+        title:          job.title,
+        clientName:     job.client?.name ?? "Unknown",
+        scheduledStart: job.startAt ?? "",
+      }));
 
-    // ── Parse requests ────────────────────────────────────────────────────────
-    const recentRequests = (gql.data?.requests?.nodes ?? []).map((req) => ({
-      id:          req.id,
-      clientName:  req.client?.name ?? "Unknown",
-      description: req.title ?? "New request",
-      createdAt:   req.createdAt ?? "",
-    }));
+    // ── Requests: take most recent 5 ─────────────────────────────────────────
+    const recentRequests = (gql.data?.requests?.nodes ?? [])
+      .slice(0, 5)
+      .map((req) => ({
+        id:          req.id,
+        clientName:  req.client?.name ?? "Unknown",
+        description: req.title ?? "New request",
+        createdAt:   req.createdAt ?? "",
+      }));
 
     const outstandingBalance = overdueInvoices.reduce((s, inv) => s + inv.total, 0);
 
