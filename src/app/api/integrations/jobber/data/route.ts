@@ -49,7 +49,7 @@ interface GQLQueryResponse {
 
 const QUERY = /* graphql */ `
   query LifeOSWeedGuys {
-    invoices(filter: { status: AWAITING_PAYMENT }, first: 20) {
+    invoices(first: 50) {
       nodes {
         id
         invoiceNumber
@@ -146,6 +146,8 @@ export async function GET(request: Request): Promise<Response> {
     const overdueInvoices = invoiceNodes
       .filter((inv) => {
         if (!inv.dueDate) return false;
+        const outstanding = inv.amounts?.outstanding ?? 0;
+        if (outstanding <= 0) return false;           // fully paid — skip
         return new Date(inv.dueDate + "T00:00:00").getTime() < today.getTime();
       })
       .map((inv) => {
