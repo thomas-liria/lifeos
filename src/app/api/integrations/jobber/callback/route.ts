@@ -5,13 +5,19 @@ const CLIENT_SECRET = process.env.JOBBER_CLIENT_SECRET!;
 const CALLBACK_URL  = process.env.JOBBER_REDIRECT_URI ?? "https://lifeos-seven-woad.vercel.app/api/integrations/jobber/callback";
 const TOKEN_URL     = "https://api.getjobber.com/api/oauth/token";
 
+// Resolve absolute URL from the incoming request origin
+function abs(request: Request, path: string): string {
+  const { origin } = new URL(request.url);
+  return `${origin}${path}`;
+}
+
 export async function GET(request: Request): Promise<Response> {
   const { searchParams } = new URL(request.url);
   const code  = searchParams.get("code");
   const error = searchParams.get("error");
 
   if (error || !code) {
-    return Response.redirect(`/settings?error=jobber_${error ?? "no_code"}`, 302);
+    return Response.redirect(abs(request, `/settings?error=jobber_${error ?? "no_code"}`), 302);
   }
 
   try {
@@ -30,7 +36,7 @@ export async function GET(request: Request): Promise<Response> {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.error("[jobber/callback] token exchange failed:", res.status, text);
-      return Response.redirect("/settings?error=jobber_token_exchange", 302);
+      return Response.redirect(abs(request, "/settings?error=jobber_token_exchange"), 302);
     }
 
     const data: {
@@ -46,12 +52,11 @@ export async function GET(request: Request): Promise<Response> {
       connectedAt:  Date.now(),
     };
 
-    // Encode as base64 and pass via URL hash (never sent to server)
     const encoded = Buffer.from(JSON.stringify(payload)).toString("base64");
-    return Response.redirect(`/auth/jobber-success#${encoded}`, 302);
+    return Response.redirect(abs(request, `/auth/jobber-success#${encoded}`), 302);
 
   } catch (err) {
     console.error("[jobber/callback]", err);
-    return Response.redirect("/settings?error=jobber_callback_exception", 302);
+    return Response.redirect(abs(request, "/settings?error=jobber_callback_exception"), 302);
   }
 }
