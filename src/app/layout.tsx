@@ -6,6 +6,14 @@ export const metadata: Metadata = {
   title: "LifeOS",
   description: "Your personal life operating system",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "LifeOS",
+  },
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
