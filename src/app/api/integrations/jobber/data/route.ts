@@ -1,4 +1,4 @@
-import { getValidToken } from "@/lib/integrations/jobber/client";
+import { getValidToken, TokenExpiredError } from "@/lib/integrations/jobber/client";
 import type { JobberTokens } from "@/lib/integrations/jobber/types";
 
 export const dynamic = "force-dynamic";
@@ -194,6 +194,9 @@ export async function GET(request: Request): Promise<Response> {
     });
 
   } catch (err) {
+    if (err instanceof TokenExpiredError) {
+      return Response.json({ error: "TOKEN_EXPIRED" }, { status: 401 });
+    }
     console.error("[jobber/data] Uncaught:", err);
     return Response.json({ error: "Failed to fetch Jobber data", detail: String(err) }, { status: 500 });
   }

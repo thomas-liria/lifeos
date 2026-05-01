@@ -85,7 +85,14 @@ export function useJobberData(): UseJobberDataResult {
       const json = await res.json();
 
       if (!res.ok) {
-        // Surface the actual error so it's visible in the panel
+        // Token expired — clear stored creds and fall back to mock silently
+        if (res.status === 401 && json?.error === "TOKEN_EXPIRED") {
+          try { localStorage.removeItem("lifeos_integration_jobber"); } catch {}
+          setData(MOCK_DATA);
+          setLoading(false);
+          return;
+        }
+        // Surface other errors so they're visible in the panel
         const msg = json?.detail
           ? (typeof json.detail === "string" ? json.detail : JSON.stringify(json.detail).slice(0, 200))
           : json?.error ?? `HTTP ${res.status}`;

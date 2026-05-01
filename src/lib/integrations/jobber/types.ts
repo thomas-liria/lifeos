@@ -38,6 +38,7 @@ export interface JobberData {
 }
 
 export interface UpdatedJobberToken {
-  accessToken: string;
-  expiresAt:   number;
+  accessToken:  string;
+  refreshToken?: string;
+  expiresAt:    number;
 }

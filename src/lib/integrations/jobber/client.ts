@@ -5,6 +5,11 @@ const BUFFER_MS      = 60_000; // refresh 60 s before expiry
 const CLIENT_ID      = process.env.JOBBER_CLIENT_ID!;
 const CLIENT_SECRET  = process.env.JOBBER_CLIENT_SECRET!;
 
+/** Thrown when the refresh token is invalid/expired — caller should re-auth */
+export class TokenExpiredError extends Error {
+  constructor() { super("TOKEN_EXPIRED"); this.name = "TokenExpiredError"; }
+}
+
 export async function getValidToken(tokens: JobberTokens): Promise<{
   accessToken:   string;
   updatedTokens: UpdatedJobberToken | null;
@@ -27,14 +32,18 @@ export async function getValidToken(tokens: JobberTokens): Promise<{
   });
 
   if (!res.ok) {
+    // 401 = refresh token invalid/expired → signal re-auth needed
+    if (res.status === 401) throw new TokenExpiredError();
     const text = await res.text().catch(() => "");
     throw new Error(`Jobber token refresh failed ${res.status}: ${text}`);
   }
 
-  const data: { access_token: string; expires_in: number } = await res.json();
+  const data: { access_token: string; refresh_token?: string; expires_in: number } = await res.json();
   const updatedTokens: UpdatedJobberToken = {
-    accessToken: data.access_token,
-    expiresAt:   Date.now() + data.expires_in * 1_000,
+    accessToken:  data.access_token,
+    // Jobber uses rotating refresh tokens — always persist the new one
+    refreshToken: data.refresh_token ?? tokens.refreshToken,
+    expiresAt:    Date.now() + data.expires_in * 1_000,
   };
 
   return { accessToken: updatedTokens.accessToken, updatedTokens };
