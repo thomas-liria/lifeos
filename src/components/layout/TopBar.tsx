@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Settings } from "lucide-react";
+import { ArrowLeft, Lock, Settings } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import { lock, isPinSet } from "@/lib/pin";
 
 export default function TopBar() {
   const pathname   = usePathname();
@@ -39,6 +40,16 @@ export default function TopBar() {
           </Link>
         )}
         {!isSettings && <ThemeToggle />}
+        {!isSettings && isPinSet() && (
+          <button
+            onClick={() => { lock(); window.location.reload(); }}
+            aria-label="Lock app"
+            className="w-8 h-8 flex items-center justify-center rounded-lg
+              text-foreground/40 hover:text-foreground/70 hover:bg-border/40 transition-colors"
+          >
+            <Lock size={16} />
+          </button>
+        )}
       </div>
     </header>
   );
