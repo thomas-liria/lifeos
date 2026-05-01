@@ -7,17 +7,34 @@ export default function JobberSuccessPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const hash = window.location.hash.slice(1);
-    if (hash) {
+    // 1. Try cookie (primary — reliable across redirect chains)
+    const cookieMatch = document.cookie.match(/(?:^|;\s*)lifeos_jobber_pending=([^;]*)/);
+    if (cookieMatch?.[1]) {
       try {
-        const decoded = JSON.parse(atob(hash));
-        if (decoded.accessToken && decoded.expiresAt) {
+        const decoded = JSON.parse(atob(cookieMatch[1]));
+        if (decoded.accessToken) {
           localStorage.setItem("lifeos_integration_jobber", JSON.stringify(decoded));
         }
       } catch (err) {
-        console.error("[jobber-success] Failed to decode token payload:", err);
+        console.error("[jobber-success] cookie decode failed:", err);
+      }
+      // Clear cookie
+      document.cookie = "lifeos_jobber_pending=; Path=/; Max-Age=0";
+    }
+
+    // 2. Fallback: hash fragment (legacy, in case cookie was blocked)
+    const hash = window.location.hash.slice(1);
+    if (!cookieMatch?.[1] && hash) {
+      try {
+        const decoded = JSON.parse(atob(hash));
+        if (decoded.accessToken) {
+          localStorage.setItem("lifeos_integration_jobber", JSON.stringify(decoded));
+        }
+      } catch (err) {
+        console.error("[jobber-success] hash decode failed:", err);
       }
     }
+
     router.replace("/tasks?workspace=weedguys");
   }, [router]);
 

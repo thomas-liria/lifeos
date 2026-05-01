@@ -53,7 +53,12 @@ export async function GET(request: Request): Promise<Response> {
     };
 
     const encoded = Buffer.from(JSON.stringify(payload)).toString("base64");
-    return Response.redirect(abs(request, `/auth/jobber-success#${encoded}`), 302);
+    // Pass token via cookie (hash fragments are stripped by some CDNs/redirects)
+    const headers = new Headers({
+      Location:    abs(request, "/auth/jobber-success"),
+      "Set-Cookie": `lifeos_jobber_pending=${encoded}; Path=/; SameSite=Lax; Max-Age=120`,
+    });
+    return new Response(null, { status: 302, headers });
 
   } catch (err) {
     console.error("[jobber/callback]", err);
