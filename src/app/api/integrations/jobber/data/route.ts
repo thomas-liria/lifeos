@@ -105,8 +105,9 @@ export async function GET(request: Request): Promise<Response> {
     const res = await fetch(GRAPHQL_URL, {
       method: "POST",
       headers: {
-        "Content-Type":  "application/json",
-        "Authorization": `Bearer ${validToken}`,
+        "Content-Type":            "application/json",
+        "Authorization":           `Bearer ${validToken}`,
+        "X-JOBBER-GRAPHQL-VERSION": "2025-04-16",
       },
       body: JSON.stringify({ query: QUERY }),
     });
