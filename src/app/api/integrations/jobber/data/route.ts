@@ -53,7 +53,6 @@ const QUERY = /* graphql */ `
       nodes {
         id
         invoiceNumber
-        status
         dueDate
         amounts {
           invoiceAmount
