@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 const CLIENT_ID     = process.env.JOBBER_CLIENT_ID!;
 const CLIENT_SECRET = process.env.JOBBER_CLIENT_SECRET!;
-const CALLBACK_URL  = process.env.JOBBER_REDIRECT_URI ?? "https://lifeos.vercel.app/api/integrations/jobber/callback";
+const CALLBACK_URL  = process.env.JOBBER_REDIRECT_URI ?? "https://lifeos-seven-woad.vercel.app/api/integrations/jobber/callback";
 const TOKEN_URL     = "https://api.getjobber.com/api/oauth/token";
 
 export async function GET(request: Request): Promise<Response> {

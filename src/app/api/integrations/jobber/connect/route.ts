@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 const CLIENT_ID    = process.env.JOBBER_CLIENT_ID!;
-const CALLBACK_URL = process.env.JOBBER_REDIRECT_URI ?? "https://lifeos.vercel.app/api/integrations/jobber/callback";
+const CALLBACK_URL = process.env.JOBBER_REDIRECT_URI ?? "https://lifeos-seven-woad.vercel.app/api/integrations/jobber/callback";
 
 export async function GET(): Promise<Response> {
   const params = new URLSearchParams({
