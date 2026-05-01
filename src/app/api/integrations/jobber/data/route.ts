@@ -8,9 +8,7 @@ const GRAPHQL_URL = "https://api.getjobber.com/api/graphql";
 // ── GraphQL response shapes ───────────────────────────────────────────────────
 
 interface GQLAmounts {
-  invoiceAmount?:  number;
-  paymentsTotal?:  number;
-  outstanding?:    number;
+  invoiceBalance?: number;
 }
 
 interface GQLInvoice {
@@ -55,9 +53,7 @@ const QUERY = /* graphql */ `
         invoiceNumber
         dueDate
         amounts {
-          invoiceAmount
-          paymentsTotal
-          outstanding
+          invoiceBalance
         }
         client { name }
       }
@@ -145,7 +141,7 @@ export async function GET(request: Request): Promise<Response> {
     const overdueInvoices = invoiceNodes
       .filter((inv) => {
         if (!inv.dueDate) return false;
-        const outstanding = inv.amounts?.outstanding ?? 0;
+        const outstanding = inv.amounts?.invoiceBalance ?? 0;
         if (outstanding <= 0) return false;           // fully paid — skip
         return new Date(inv.dueDate + "T00:00:00").getTime() < today.getTime();
       })
@@ -154,7 +150,7 @@ export async function GET(request: Request): Promise<Response> {
         const daysOverdue = Math.max(0, Math.floor(
           (today.getTime() - new Date(dueDate + "T00:00:00").getTime()) / 86_400_000,
         ));
-        const total = inv.amounts?.outstanding ?? inv.amounts?.invoiceAmount ?? 0;
+        const total = inv.amounts?.invoiceBalance ?? 0;
         return {
           id:            inv.id,
           invoiceNumber: inv.invoiceNumber ?? `#${inv.id.slice(-4)}`,
