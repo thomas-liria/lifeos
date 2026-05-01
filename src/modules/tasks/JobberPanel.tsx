@@ -116,15 +116,16 @@ export function JobberPanel() {
           Showing sample data — connect Jobber in Settings to see live data
         </div>
       )}
-      {error && !isMock && (
+      {error && (
         <div style={{
           background:   "color-mix(in srgb, var(--urgent) 10%, transparent)",
           border:       "0.5px solid color-mix(in srgb, var(--urgent) 30%, transparent)",
           borderRadius:  12,
           padding:      "8px 14px",
           marginBottom:  12,
-          fontSize:     "0.8rem",
+          fontSize:     "0.75rem",
           color:        "var(--urgent)",
+          wordBreak:    "break-all",
         }}>
           {error}
         </div>

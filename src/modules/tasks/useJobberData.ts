@@ -42,22 +42,6 @@ const MOCK_DATA: JobberData = {
   isMock:             true,
 };
 
-async function fetchJobberData(tokens: JobberTokens): Promise<{
-  data:          Omit<JobberData, "isMock">;
-  updatedTokens: { accessToken: string; expiresAt: number } | null;
-}> {
-  const res = await fetch("/api/integrations/jobber/data", {
-    headers: {
-      "Authorization":      `Bearer ${tokens.accessToken}`,
-      "X-Refresh-Token":    tokens.refreshToken,
-      "X-Token-Expires-At": String(tokens.expiresAt),
-    },
-  });
-
-  if (!res.ok) throw new Error(`Jobber data fetch failed: ${res.status}`);
-  return res.json();
-}
-
 // ── Hook ──────────────────────────────────────────────────────────────────────
 export interface UseJobberDataResult {
   data:      JobberData;
@@ -90,7 +74,29 @@ export function useJobberData(): UseJobberDataResult {
     setError(null);
 
     try {
-      const { data: fetched, updatedTokens } = await fetchJobberData(tokens);
+      const res  = await fetch("/api/integrations/jobber/data", {
+        headers: {
+          "Authorization":      `Bearer ${tokens.accessToken}`,
+          "X-Refresh-Token":    tokens.refreshToken,
+          "X-Token-Expires-At": String(tokens.expiresAt),
+        },
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        // Surface the actual error so it's visible in the panel
+        const msg = json?.detail
+          ? (typeof json.detail === "string" ? json.detail : JSON.stringify(json.detail).slice(0, 200))
+          : json?.error ?? `HTTP ${res.status}`;
+        console.error("[useJobberData] API error:", msg);
+        setError(`Jobber API error: ${msg}`);
+        setLoading(false);
+        return;
+      }
+
+      const fetched = json;
+      const updatedTokens = fetched.updatedTokens;
 
       // Persist refreshed token
       if (updatedTokens) {
