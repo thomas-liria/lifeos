@@ -1,0 +1,127 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { JobberData, JobberTokens } from "@/lib/integrations/jobber/types";
+
+// ── Mock data — shown when no Jobber token is present ────────────────────────
+const MOCK_DATA: JobberData = {
+  overdueInvoices: [
+    {
+      id:            "mock-1",
+      invoiceNumber: "#1042",
+      clientName:    "Smith Residence",
+      total:         285.00,
+      dueDate:       "2026-04-14",
+      daysOverdue:   16,
+    },
+    {
+      id:            "mock-2",
+      invoiceNumber: "#1038",
+      clientName:    "Metro Properties",
+      total:         640.00,
+      dueDate:       "2026-04-21",
+      daysOverdue:   9,
+    },
+  ],
+  upcomingJobs: [
+    {
+      id:             "mock-j1",
+      title:          "Lawn Care",
+      clientName:     "Johnson Property",
+      scheduledStart: "2026-05-01T09:00:00",
+    },
+    {
+      id:             "mock-j2",
+      title:          "Snow Removal",
+      clientName:     "Park Ave Commercial",
+      scheduledStart: "2026-05-02T07:00:00",
+    },
+  ],
+  recentRequests:     [],
+  outstandingBalance: 925.00,
+  isMock:             true,
+};
+
+async function fetchJobberData(tokens: JobberTokens): Promise<{
+  data:          Omit<JobberData, "isMock">;
+  updatedTokens: { accessToken: string; expiresAt: number } | null;
+}> {
+  const res = await fetch("/api/integrations/jobber/data", {
+    headers: {
+      "Authorization":      `Bearer ${tokens.accessToken}`,
+      "X-Refresh-Token":    tokens.refreshToken,
+      "X-Token-Expires-At": String(tokens.expiresAt),
+    },
+  });
+
+  if (!res.ok) throw new Error(`Jobber data fetch failed: ${res.status}`);
+  return res.json();
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
+export interface UseJobberDataResult {
+  data:      JobberData;
+  loading:   boolean;
+  error:     string | null;
+  refetch:   () => void;
+}
+
+export function useJobberData(): UseJobberDataResult {
+  const [data,    setData]    = useState<JobberData>(MOCK_DATA);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    let raw: string | null = null;
+    try { raw = localStorage.getItem("lifeos_integration_jobber"); } catch {}
+
+    if (!raw) {
+      setData(MOCK_DATA);
+      return;
+    }
+
+    let tokens: JobberTokens;
+    try { tokens = JSON.parse(raw); }
+    catch { setData(MOCK_DATA); return; }
+
+    if (!tokens.accessToken) { setData(MOCK_DATA); return; }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data: fetched, updatedTokens } = await fetchJobberData(tokens);
+
+      // Persist refreshed token
+      if (updatedTokens) {
+        try {
+          const updated: JobberTokens = {
+            ...tokens,
+            ...updatedTokens,
+            lastSyncedAt: Date.now(),
+          };
+          localStorage.setItem("lifeos_integration_jobber", JSON.stringify(updated));
+        } catch {}
+      } else {
+        try {
+          localStorage.setItem(
+            "lifeos_integration_jobber",
+            JSON.stringify({ ...tokens, lastSyncedAt: Date.now() }),
+          );
+        } catch {}
+      }
+
+      setData({ ...fetched, isMock: false });
+    } catch (err) {
+      console.error("[useJobberData]", err);
+      setError("Could not load live Jobber data");
+      setData(MOCK_DATA);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { data, loading, error, refetch: load };
+}
