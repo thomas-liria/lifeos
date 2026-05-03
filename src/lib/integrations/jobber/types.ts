@@ -34,7 +34,10 @@ export interface JobberData {
   upcomingJobs:       JobberJob[];
   recentRequests:     JobberRequest[];
   outstandingBalance: number;
+  unpaidCount?:       number;
   isMock:             boolean;
+  syncedAt?:          number;      // epoch ms of last successful fetch
+  schemaWarnings?:    string[];    // non-fatal field errors to surface in UI
 }
 
 export interface UpdatedJobberToken {

@@ -124,7 +124,11 @@ export function useJobberData(): UseJobberDataResult {
         } catch {}
       }
 
-      setData({ ...fetched, isMock: false });
+      setData({
+        ...fetched,
+        isMock:   false,
+        syncedAt: fetched.syncedAt ?? Date.now(),
+      });
     } catch (err) {
       console.error("[useJobberData]", err);
       setError("Could not load live Jobber data");
